@@ -12,3 +12,46 @@ dependencies = [
 
 [project.scripts]
 iris-mcp = "iris_mcp:run"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13.0",
+    "pre-commit>=4.0.1",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.2",
+    "types-requests>=2.32.0.20241016",
+]
+
+[tool.ruff]
+line-length = 160
+target-version = "py312"
+exclude = ["vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "PL", "RUF"]
+ignore = ["PLR0913", "PLR0911"]
+
+[tool.ruff.lint.per-file-ignores]
+"types_catalog.py" = ["E501"]
+"iris_mcp.py" = ["E501"]
+"verify_live.py" = ["PLR0915", "PLR0912", "T201"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+exclude = ["vendor"]
+
+[[tool.mypy.overrides]]
+module = ["test_iris_mcp", "conftest", "verify_live"]
+strict = false
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+check_untyped_defs = false
+disable_error_code = ["operator", "assignment"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=iris_mcp --cov-report=term-missing"
+testpaths = ["."]
+norecursedirs = ["vendor"]

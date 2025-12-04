@@ -6,22 +6,30 @@
 # ]
 # ///
 
-import os
-from dfir_iris_client.session import ClientSession
-from dfir_iris_client.case import Case
-from dfir_iris_client.alert import Alert
-from dfir_iris_client.customer import Customer
-from fastmcp import FastMCP
 import inspect
+import os
+import sys
+
+# Add vendor directory to path to ensure we use the local client version
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "vendor/iris-client"))
+
+from datetime import datetime
 from typing import Any
+
+from dfir_iris_client.admin import AdminHelper
+from dfir_iris_client.alert import Alert
+from dfir_iris_client.case import Case
+from dfir_iris_client.customer import Customer
+from dfir_iris_client.session import ClientSession
+from fastmcp import FastMCP
 
 # Static catalog data loaded from a dedicated module
 from types_catalog import (
-    CATALOG,
     ALERT_RESOLUTION_STATUSES,
     ALERT_STATUSES,
     ANALYSIS_STATUSES,
     ASSET_TYPES,
+    CATALOG,
     EVENT_CATEGORIES,
     EVIDENCE_TYPES,
     IOC_TYPES,
@@ -34,11 +42,12 @@ from types_catalog import (
 # Initialize FastMCP server
 mcp = FastMCP("dfir-iris")
 
+
 def _normalize_key(name: str) -> str:
     return name.replace("_", "").replace("-", "").lower()
 
 
-def _get_field(item, *names):
+def _get_field(item: Any, *names: str) -> Any:
     """Return the first matching attribute/key from an API payload object or dict.
 
     Tries direct matches first, then falls back to case/underscore-insensitive matches
@@ -72,7 +81,8 @@ def _get_field(item, *names):
                 continue
     return None
 
-def _extract_data(resp, action: str):
+
+def _extract_data(resp: Any, action: str) -> Any:
     """Unwrap ApiResponse data or raise a helpful error."""
     if hasattr(resp, "is_error") and resp.is_error():
         msg = resp.get_msg() if hasattr(resp, "get_msg") else None
@@ -89,7 +99,13 @@ def _extract_data(resp, action: str):
     return getattr(resp, "data", None)
 
 
-def _try_case_methods(case_obj, method_candidates: list[str], action: str, payload_options: list[dict[str, Any]], allow_positional: bool = True):
+def _try_case_methods(
+    case_obj: Any,
+    method_candidates: list[str],
+    action: str,
+    payload_options: list[dict[str, Any]],
+    allow_positional: bool = True,
+) -> tuple[Any, str]:
     """Attempt multiple method names/payload shapes; return (data, method_used) or raise last error."""
     last_error: Exception | None = None
     for meth in method_candidates:
@@ -125,11 +141,11 @@ def _try_case_methods(case_obj, method_candidates: list[str], action: str, paylo
     raise AttributeError(f"No method found for {action}. Tried: {method_candidates}")
 
 
-def _ensure_list(data):
+def _ensure_list(data: Any) -> list[Any]:
     """Normalize Iris API data payloads to a list for safe iteration."""
     if data is None:
         return []
-    if isinstance(data, (list, tuple)):
+    if isinstance(data, list | tuple):
         return list(data)
     if isinstance(data, dict):
         # Prefer common collection keys returned by the Iris API
@@ -143,18 +159,18 @@ def _ensure_list(data):
             "notes",
             "note",
         ):
-            if key in data and isinstance(data[key], (list, tuple)):
+            if key in data and isinstance(data[key], list | tuple):
                 return list(data[key])
         # Prefer nested "data" key if present; otherwise, iterate values
         nested = data.get("data") if hasattr(data, "get") else None
-        if isinstance(nested, (list, tuple)):
+        if isinstance(nested, list | tuple):
             return list(nested)
         return list(data.values())
     # Single object case
     return [data]
 
 
-def _prepare_case(session, case_id: int):
+def _prepare_case(session: ClientSession, case_id: int | None) -> Case:
     case_obj = Case(session)
     try:
         if case_id is not None and hasattr(case_obj, "set_cid"):
@@ -187,13 +203,14 @@ def _introspect_case_methods(case_id: int, filter_text: str = "") -> str:
             return f"No case methods matched filter '{filter_text}'."
         return "Case methods:\n" + "\n".join(parts)
     except Exception as e:
-        return f"Error introspecting case methods: {str(e)}"
+        return f"Error introspecting case methods: {e!s}"
 
-def _format_customer(customer, customer_map: dict[int, str] | None = None) -> str:
+
+def _format_customer(customer: Any, customer_map: dict[int, str] | None = None) -> str:
     """Render customer info from id/dict/str with optional lookup map."""
     if customer is None:
         return "Unassigned"
-    if isinstance(customer, (str, bytes)):
+    if isinstance(customer, str | bytes):
         return str(customer)
     if isinstance(customer, dict):
         name = _get_field(customer, "customer_name", "name")
@@ -201,7 +218,7 @@ def _format_customer(customer, customer_map: dict[int, str] | None = None) -> st
         if name and cid is not None:
             return f"{name} (ID {cid})"
         if name:
-            return name
+            return str(name)
         if cid is not None:
             return f"ID {cid}"
     if isinstance(customer, int) and customer_map and customer in customer_map:
@@ -209,6 +226,7 @@ def _format_customer(customer, customer_map: dict[int, str] | None = None) -> st
     if isinstance(customer, int):
         return f"ID {customer}"
     return str(customer)
+
 
 def get_iris_client() -> ClientSession:
     """
@@ -261,81 +279,100 @@ def _get_catalog(kind: str) -> list[dict[str, str]]:
     return catalog
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_types(kind: str) -> list[dict[str, str]]:
     """Return a catalog of supported types/statuses (e.g., assets, iocs, severities)."""
     return _get_catalog(kind)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_ioc_types() -> list[dict[str, str]]:
     """Return all supported IOC types (with optional validation hints)."""
     return IOC_TYPES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_asset_types() -> list[dict[str, str]]:
     """Return all supported asset types (with icon hints)."""
     return ASSET_TYPES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_analysis_statuses() -> list[dict[str, str]]:
     """Return all analysis statuses used for assets/IOCs."""
     return ANALYSIS_STATUSES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_alert_resolution_statuses() -> list[dict[str, str]]:
     """Return alert resolution statuses."""
     return ALERT_RESOLUTION_STATUSES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_alert_statuses() -> list[dict[str, str]]:
     """Return alert lifecycle statuses."""
     return ALERT_STATUSES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_task_statuses() -> list[dict[str, str]]:
     """Return task statuses."""
     return TASK_STATUSES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_severities() -> list[dict[str, str]]:
     """Return severity levels."""
     return SEVERITIES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_evidence_types() -> list[dict[str, str]]:
     """Return evidence types."""
     return EVIDENCE_TYPES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_event_categories() -> list[dict[str, str]]:
     """Return event categories."""
     return EVENT_CATEGORIES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_os_types() -> list[dict[str, str]]:
     """Return operating system types."""
     return OS_TYPES
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_tlp_levels() -> list[dict[str, str]]:
     """Return TLP levels."""
     return TLP_LEVELS
 
-def _list_cases() -> str:
+
+def _list_cases(
+    customer_id: int | None = None,
+    case_name: str | None = None,
+    description: str | None = None,
+    case_status_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
     try:
         session = get_iris_client()
-        cases = Case(session).list_cases()
+        # Filter out None values
+        kwargs = {
+            "case_customer": customer_id,
+            "case_name": case_name,
+            "case_description": description,
+            "case_status_id": case_status_id,
+            "case_open_date_gt": start_date,
+            "case_open_date_lt": end_date,
+        }
+        filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
+        cases = Case(session).list_cases(**filtered_kwargs)
         data = _extract_data(cases, "Listing cases")
         items = _ensure_list(data)
 
@@ -353,7 +390,7 @@ def _list_cases() -> str:
         except Exception:
             # If customer lookup fails, still return cases.
             customer_lookup = None
-        
+
         if not items:
             return "No cases found."
 
@@ -367,24 +404,33 @@ def _list_cases() -> str:
             )
             status = _get_field(case, "case_status_id", "status_id", "status")
             result += f"- ID: {cid}, Name: {name}, Customer: {customer}, Status: {status}\n"
-        
+
         return result
     except Exception as e:
-        return f"Error listing cases: {str(e)}"
+        return f"Error listing cases: {e!s}"
 
-@mcp.tool()
-def list_cases() -> str:
+
+@mcp.tool()  # type: ignore
+def list_cases(
+    customer_id: int | None = None,
+    case_name: str | None = None,
+    description: str | None = None,
+    case_status_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
     """
-    List all cases in DFIR Iris.
+    List cases with optional filtering.
     """
-    return _list_cases()
+    return _list_cases(customer_id, case_name, description, case_status_id, start_date, end_date)
+
 
 def _get_case(case_id: int) -> str:
     try:
         session = get_iris_client()
         case = Case(session).get_case(cid=case_id)
         data = _extract_data(case, f"Getting case {case_id}")
-        
+
         if not data:
             return f"Case with ID {case_id} not found."
 
@@ -398,58 +444,124 @@ def _get_case(case_id: int) -> str:
             f"Opened: {_get_field(data, 'case_open_date', 'open_date')}"
         )
     except Exception as e:
-        return f"Error getting case {case_id}: {str(e)}"
+        return f"Error getting case {case_id}: {e!s}"
 
-@mcp.tool()
+
+@mcp.tool()  # type: ignore
 def get_case(case_id: int) -> str:
     """
-    Get details of a specific case by ID.
+    Get detailed information about a specific case.
     """
     return _get_case(case_id)
 
-def _create_case(name: str, customer_id: int, description: str = "", soc_id: str = "default", classification: str = "other:other") -> str:
+
+def _create_case(name: str, customer_id: int, description: str = "", soc_id: str = "", classification_id: int | None = None) -> str:
     try:
         session = get_iris_client()
         # Note: add_case requires soc_id and case_classification
-        new_case = Case(session).add_case(
-            case_name=name, 
-            case_customer=customer_id, 
-            case_description=description,
-            soc_id=soc_id,
-            case_classification=classification
-        )
+        kwargs = {
+            "case_name": name,
+            "case_customer": customer_id,
+            "case_description": description,
+            "soc_id": soc_id,
+        }
+        if classification_id is not None:
+            kwargs["case_classification_id"] = classification_id
+        else:
+            # Default classification if not provided and required by API
+            kwargs["case_classification"] = "other:other"
+
+        new_case = Case(session).add_case(**kwargs)
 
         created = _extract_data(new_case, "Creating case")
         if not created:
             return "Failed to create case."
         return f"Case created successfully. ID: {_get_field(created, 'case_id', 'id', 'cid')}"
     except Exception as e:
-        return f"Error creating case: {str(e)}"
+        return f"Error creating case: {e!s}"
 
-@mcp.tool()
-def create_case(name: str, customer_id: int, description: str = "", soc_id: str = "default", classification: str = "other:other") -> str:
+
+@mcp.tool()  # type: ignore
+def create_case(
+    name: str,
+    customer_id: int,
+    description: str = "",
+    soc_id: str = "",
+    classification_id: int | None = None,
+) -> str:
     """
     Create a new case.
     """
-    return _create_case(name, customer_id, description, soc_id, classification)
+    return _create_case(name, customer_id, description, soc_id, classification_id)
 
-def _create_alert(title: str, description: str, source: str, source_ref: str, tags: str = "") -> str:
+
+def _create_alert(
+    title: str,
+    description: str,
+    source: str,
+    source_ref: str,
+    tags: str = "",
+    severity_id: int = 2,  # Low
+    status_id: int = 1,  # New
+    customer_id: int = 1,  # Default customer
+) -> str:
     try:
         session = get_iris_client()
-        pass
-        return "Alert creation not fully implemented yet. Please use case management."
+        alert_handler = Alert(session)
+        alert_data = {
+            "alert_title": title,
+            "alert_description": description,
+            "alert_source": source,
+            "alert_source_ref": source_ref,
+            "alert_tags": tags,
+            "alert_severity_id": severity_id,
+            "alert_status_id": status_id,
+            "alert_customer_id": customer_id,
+        }
+        resp = alert_handler.add_alert(alert_data)
+        data = _extract_data(resp, "Creating alert")
+        alert_id = _get_field(data, "alert_id", "id")
+        return f"Alert created successfully. ID: {alert_id}"
     except Exception as e:
-        return f"Error creating alert: {str(e)}"
+        return f"Error creating alert: {e!s}"
 
-@mcp.tool()
-def create_alert(title: str, description: str, source: str, source_ref: str, tags: str = "") -> str:
+
+@mcp.tool()  # type: ignore
+def create_alert(
+    title: str,
+    description: str,
+    source: str,
+    source_ref: str,
+    tags: str = "",
+    severity_id: int = 2,  # Low
+    status_id: int = 1,  # New
+    customer_id: int = 1,  # Default customer
+) -> str:
     """
     Create a new alert.
-    tags: Comma-separated list of tags.
     """
-    return _create_alert(title, description, source, source_ref, tags)
+    return _create_alert(title, description, source, source_ref, tags, severity_id, status_id, customer_id)
 
-def _resolve_note_directory_id(case_obj, case_id: int, directory_id: int | None) -> int | None:
+
+def _create_customer(name: str, description: str | None = None, sla: str | None = None) -> str:
+    try:
+        session = get_iris_client()
+        admin_handler = AdminHelper(session)
+        resp = admin_handler.add_customer(customer_name=name, customer_description=description, customer_sla=sla)
+        data = _extract_data(resp, "Creating customer")
+        cid = _get_field(data, "customer_id", "id")
+        return f"Customer created successfully. ID: {cid}"
+    except Exception as e:
+        return f"Error creating customer: {e!s}"
+
+
+@mcp.tool()  # type: ignore
+def create_customer(name: str, description: str | None = None, sla: str | None = None) -> str:
+    """Create a new customer."""
+    return _create_customer(name, description, sla)
+
+
+def _resolve_note_directory_id(case_obj: Any, case_id: int, directory_id: int | None) -> int | None:
     """Return a usable directory_id, creating a default one if needed."""
     if directory_id is not None:
         return directory_id
@@ -459,7 +571,7 @@ def _resolve_note_directory_id(case_obj, case_id: int, directory_id: int | None)
         for item in _ensure_list(data):
             dir_id = _get_field(item, "id", "directory_id", "note_directory_id", "dir_id")
             if dir_id is not None:
-                return dir_id
+                return int(dir_id)
     except Exception:
         pass
 
@@ -467,12 +579,20 @@ def _resolve_note_directory_id(case_obj, case_id: int, directory_id: int | None)
     try:
         resp = case_obj.add_notes_directory(directory_name="Root Notes", cid=case_id)
         data = _extract_data(resp, f"Creating default note directory for case {case_id}")
-        return _get_field(data, "id", "directory_id", "note_directory_id", "dir_id")
+        val = _get_field(data, "id", "directory_id", "note_directory_id", "dir_id")
+        return int(val) if val is not None else None
     except Exception:
         return None
 
 
-def _add_note(case_id: int, content: str, title: str = "Note", directory_id: int | None = None, group_id: int | None = None, custom_attributes: dict | None = None) -> str:
+def _add_note(
+    case_id: int,
+    content: str,
+    title: str = "Note",
+    directory_id: int | None = None,
+    group_id: int | None = None,
+    custom_attributes: dict[str, Any] | None = None,
+) -> str:
     try:
         session = get_iris_client()
         case_obj = _prepare_case(session, case_id)
@@ -493,7 +613,7 @@ def _add_note(case_id: int, content: str, title: str = "Note", directory_id: int
         note_id = _get_field(data, "note_id", "id")
         return f"Note added to case {case_id}. ID: {note_id}, Directory: {resolved_dir}"
     except Exception as e:
-        return f"Error adding note: {str(e)}"
+        return f"Error adding note: {e!s}"
 
 
 def _list_notes(case_id: int) -> str:
@@ -523,7 +643,7 @@ def _list_notes(case_id: int) -> str:
                     result += f"  • ID: {nid}, Title: {title}\n"
         return result.rstrip()
     except Exception as e:
-        return f"Error listing notes: {str(e)}"
+        return f"Error listing notes: {e!s}"
 
 
 def _list_note_directories(case_id: int) -> str:
@@ -558,7 +678,7 @@ def _list_note_directories(case_id: int) -> str:
                     result += f"  • Note ID: {nid}, Title: {title}\n"
         return result.rstrip()
     except Exception as e:
-        return f"Error listing note directories: {str(e)}"
+        return f"Error listing note directories: {e!s}"
 
 
 def _create_note_directory(case_id: int, name: str, parent_directory_id: int | None = None) -> str:
@@ -590,12 +710,9 @@ def _create_note_directory(case_id: int, name: str, parent_directory_id: int | N
                 continue
 
         note_methods = [m for m in dir(case_obj) if "note" in m]
-        return (
-            "Note directory creation not available on Case client. "
-            f"Available note-related attributes: {note_methods}"
-        )
+        return f"Note directory creation not available on Case client. Available note-related attributes: {note_methods}"
     except Exception as e:
-        return f"Error creating note directory: {str(e)}"
+        return f"Error creating note directory: {e!s}"
 
 
 def _get_note(note_id: int, case_id: int) -> str:
@@ -607,17 +724,12 @@ def _get_note(note_id: int, case_id: int) -> str:
         title = _get_field(data, "note_title", "title")
         content = _get_field(data, "note_content", "content")
         directory = _get_field(data, "directory_id", "note_directory_id", "dir_id")
-        return (
-            f"Note {note_id} (Case {case_id}):\n"
-            f"Title: {title}\n"
-            f"Directory: {directory}\n"
-            f"Content:\n{content}"
-        )
+        return f"Note {note_id} (Case {case_id}):\nTitle: {title}\nDirectory: {directory}\nContent:\n{content}"
     except Exception as e:
-        return f"Error getting note: {str(e)}"
+        return f"Error getting note: {e!s}"
 
 
-def _update_note(note_id: int, case_id: int, **fields) -> str:
+def _update_note(note_id: int, case_id: int, **fields: Any) -> str:
     try:
         session = get_iris_client()
         case_obj = _prepare_case(session, case_id)
@@ -627,7 +739,7 @@ def _update_note(note_id: int, case_id: int, **fields) -> str:
         _extract_data(resp, f"Updating note {note_id}")
         return f"Note {note_id} updated."
     except Exception as e:
-        return f"Error updating note: {str(e)}"
+        return f"Error updating note: {e!s}"
 
 
 def _delete_note(note_id: int, case_id: int) -> str:
@@ -638,7 +750,7 @@ def _delete_note(note_id: int, case_id: int) -> str:
         _extract_data(resp, f"Deleting note {note_id}")
         return f"Note {note_id} deleted."
     except Exception as e:
-        return f"Error deleting note: {str(e)}"
+        return f"Error deleting note: {e!s}"
 
 
 def _add_note_comment(note_id: int, comment: str, case_id: int) -> str:
@@ -649,7 +761,7 @@ def _add_note_comment(note_id: int, comment: str, case_id: int) -> str:
         _extract_data(resp, f"Adding comment to note {note_id}")
         return f"Comment added to note {note_id}."
     except Exception as e:
-        return f"Error adding note comment: {str(e)}"
+        return f"Error adding note comment: {e!s}"
 
 
 def _list_note_comments(note_id: int, case_id: int) -> str:
@@ -671,7 +783,7 @@ def _list_note_comments(note_id: int, case_id: int) -> str:
             result += f"- ID: {cid}, Author: {author}, Comment: {content}\n"
         return result.rstrip()
     except Exception as e:
-        return f"Error listing note comments: {str(e)}"
+        return f"Error listing note comments: {e!s}"
 
 
 def _search_notes(case_id: int, search_term: str = "%") -> str:
@@ -691,7 +803,7 @@ def _search_notes(case_id: int, search_term: str = "%") -> str:
             result += f"- ID: {nid}, Title: {title}, Directory: {directory}\n"
         return result.rstrip()
     except Exception as e:
-        return f"Error searching notes: {str(e)}"
+        return f"Error searching notes: {e!s}"
 
 
 def _list_evidence(case_id: int) -> str:
@@ -717,13 +829,10 @@ def _list_evidence(case_id: int) -> str:
             if all(v is None for v in (evid, name, etype, tlp, size, file_hash, desc)):
                 result += f"- {ev}\n"
             else:
-                result += (
-                    f"- ID: {evid}, Name: {name}, Type: {etype}, TLP: {tlp}, "
-                    f"Size: {size}, Hash: {file_hash}, Added: {added}, Desc: {desc}\n"
-                )
+                result += f"- ID: {evid}, Name: {name}, Type: {etype}, TLP: {tlp}, Size: {size}, Hash: {file_hash}, Added: {added}, Desc: {desc}\n"
         return result
     except Exception as e:
-        return f"Error listing evidence: {str(e)}"
+        return f"Error listing evidence: {e!s}"
 
 
 def _add_evidence(
@@ -732,8 +841,8 @@ def _add_evidence(
     file_size: int | None = None,
     description: str = "",
     file_hash: str | None = None,
-    custom_attributes: dict | None = None,
-    extra: dict | None = None,
+    custom_attributes: dict[str, Any] | None = None,
+    extra: dict[str, Any] | None = None,
     name: str | None = None,
 ) -> str:
     try:
@@ -765,10 +874,10 @@ def _add_evidence(
         evid = _get_field(data, "evidence_id", "id")
         return f"Evidence added. ID: {evid}"
     except Exception as e:
-        return f"Error adding evidence: {str(e)}"
+        return f"Error adding evidence: {e!s}"
 
 
-def _update_evidence(evidence_id: int, case_id: int | None = None, **fields) -> str:
+def _update_evidence(evidence_id: int, case_id: int | None = None, **fields: Any) -> str:
     try:
         session = get_iris_client()
         if case_id is None:
@@ -782,7 +891,7 @@ def _update_evidence(evidence_id: int, case_id: int | None = None, **fields) -> 
         _extract_data(resp, f"Updating evidence {evidence_id}")
         return f"Evidence {evidence_id} updated."
     except Exception as e:
-        return f"Error updating evidence: {str(e)}"
+        return f"Error updating evidence: {e!s}"
 
 
 def _delete_evidence(evidence_id: int, case_id: int | None = None) -> str:
@@ -796,7 +905,7 @@ def _delete_evidence(evidence_id: int, case_id: int | None = None) -> str:
         _extract_data(resp, f"Deleting evidence {evidence_id}")
         return f"Evidence {evidence_id} deleted."
     except Exception as e:
-        return f"Error deleting evidence: {str(e)}"
+        return f"Error deleting evidence: {e!s}"
 
 
 def _list_events(case_id: int) -> str:
@@ -824,7 +933,7 @@ def _list_events(case_id: int) -> str:
                 result += f"- ID: {evid}, Name: {name}, Category: {category}, TLP/Color: {tlp}, Time: {when}, Desc: {desc}\n"
         return result
     except Exception as e:
-        return f"Error listing events: {str(e)}"
+        return f"Error listing events: {e!s}"
 
 
 def _add_event(
@@ -835,16 +944,16 @@ def _add_event(
     date_time: str | None = None,
     raw_content: str | None = None,
     source: str | None = None,
-    linked_assets: list | None = None,
-    linked_iocs: list | None = None,
-    tags: list | None = None,
+    linked_assets: list[Any] | None = None,
+    linked_iocs: list[Any] | None = None,
+    tags: list[str] | None = None,
     color: str | None = None,
     display_in_graph: bool | None = None,
     display_in_summary: bool | None = None,
-    custom_attributes: dict | None = None,
+    custom_attributes: dict[str, Any] | None = None,
     timezone_string: str | None = None,
     sync_ioc_with_assets: bool = False,
-    extra: dict | None = None,
+    extra: dict[str, Any] | None = None,
     tlp: str | None = None,
 ) -> str:
     try:
@@ -853,9 +962,8 @@ def _add_event(
         extra = extra or {}
         if date_time is None:
             date_time = extra.get("date_time") or extra.get("datetime")
-        parsed_dt = date_time
+        parsed_dt: Any = date_time
         if isinstance(parsed_dt, str):
-            from datetime import datetime
             try:
                 parsed_dt = datetime.fromisoformat(parsed_dt)
             except Exception:
@@ -890,10 +998,10 @@ def _add_event(
         evid = _get_field(data, "event_id", "id")
         return f"Event added. ID: {evid}"
     except Exception as e:
-        return f"Error adding event: {str(e)}"
+        return f"Error adding event: {e!s}"
 
 
-def _update_event(event_id: int, case_id: int | None = None, **fields) -> str:
+def _update_event(event_id: int, case_id: int | None = None, **fields: Any) -> str:
     try:
         session = get_iris_client()
         # Allow cid inside fields to avoid "No case ID provided" errors
@@ -908,7 +1016,7 @@ def _update_event(event_id: int, case_id: int | None = None, **fields) -> str:
         _extract_data(resp, f"Updating event {event_id}")
         return f"Event {event_id} updated."
     except Exception as e:
-        return f"Error updating event: {str(e)}"
+        return f"Error updating event: {e!s}"
 
 
 def _delete_event(event_id: int, case_id: int | None = None) -> str:
@@ -922,68 +1030,68 @@ def _delete_event(event_id: int, case_id: int | None = None) -> str:
         _extract_data(resp, f"Deleting event {event_id}")
         return f"Event {event_id} deleted."
     except Exception as e:
-        return f"Error deleting event: {str(e)}"
+        return f"Error deleting event: {e!s}"
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_notes(case_id: int) -> str:
     """List notes for a case (includes directory ids)."""
     return _list_notes(case_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_note_directories(case_id: int) -> str:
     """List note directories for a case (best-effort across client versions)."""
     return _list_note_directories(case_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def create_note_directory(case_id: int, name: str, parent_directory_id: int | None = None) -> str:
     """Create a note directory for a case (best-effort across client versions)."""
     return _create_note_directory(case_id, name, parent_directory_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_evidence(case_id: int) -> str:
     """List evidence for a case (best-effort across client versions)."""
     return _list_evidence(case_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def add_evidence(
     case_id: int,
     filename: str | None = None,
     file_size: int | None = None,
     description: str = "",
     file_hash: str | None = None,
-    custom_attributes: dict | None = None,
-    extra: dict | None = None,
+    custom_attributes: dict[str, Any] | None = None,
+    extra: dict[str, Any] | None = None,
     name: str | None = None,
 ) -> str:
     """Add evidence to a case."""
     return _add_evidence(case_id, filename, file_size, description, file_hash, custom_attributes, extra, name)
 
 
-@mcp.tool()
-def update_evidence(evidence_id: int, case_id: int | None = None, fields: dict | None = None) -> str:
+@mcp.tool()  # type: ignore
+def update_evidence(evidence_id: int, case_id: int | None = None, fields: dict[str, Any] | None = None) -> str:
     """Update evidence fields (pass additional fields in 'fields')."""
     fields = fields or {}
     return _update_evidence(evidence_id, case_id, **fields)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def delete_evidence(evidence_id: int, case_id: int | None = None) -> str:
     """Delete an evidence item."""
     return _delete_evidence(evidence_id, case_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_events(case_id: int) -> str:
     """List events for a case."""
     return _list_events(case_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def add_event(
     case_id: int,
     name: str,
@@ -992,16 +1100,16 @@ def add_event(
     date_time: str | None = None,
     raw_content: str | None = None,
     source: str | None = None,
-    linked_assets: list | None = None,
-    linked_iocs: list | None = None,
-    tags: list | None = None,
+    linked_assets: list[Any] | None = None,
+    linked_iocs: list[Any] | None = None,
+    tags: list[str] | None = None,
     color: str | None = None,
     display_in_graph: bool | None = None,
     display_in_summary: bool | None = None,
-    custom_attributes: dict | None = None,
+    custom_attributes: dict[str, Any] | None = None,
     timezone_string: str | None = None,
     sync_ioc_with_assets: bool = False,
-    extra: dict | None = None,
+    extra: dict[str, Any] | None = None,
     tlp: str | None = None,
 ) -> str:
     """Add an event to a case."""
@@ -1027,71 +1135,81 @@ def add_event(
     )
 
 
-@mcp.tool()
-def update_event(event_id: int, case_id: int | None = None, fields: dict | None = None) -> str:
+@mcp.tool()  # type: ignore
+def update_event(event_id: int, case_id: int | None = None, fields: dict[str, Any] | None = None) -> str:
     """Update an event's fields (pass additional fields in 'fields')."""
     fields = fields or {}
     return _update_event(event_id, case_id, **fields)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def delete_event(event_id: int, case_id: int | None = None) -> str:
     """Delete an event."""
     return _delete_event(event_id, case_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def debug_case_methods(case_id: int, filter_text: str = "") -> str:
     """List available Case methods (optionally filtered), useful for wiring missing tools."""
     return _introspect_case_methods(case_id, filter_text)
 
-@mcp.tool()
-def add_note(case_id: int, content: str, title: str = "Note", directory_id: int | None = None, group_id: int | None = None, custom_attributes: dict | None = None) -> str:
+
+@mcp.tool()  # type: ignore
+def add_note(
+    case_id: int,
+    content: str,
+    title: str = "Note",
+    directory_id: int | None = None,
+    group_id: int | None = None,
+    custom_attributes: dict[str, Any] | None = None,
+) -> str:
     """
     Add a note to a case.
     """
     return _add_note(case_id, content, title, directory_id, group_id, custom_attributes)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def get_note(case_id: int, note_id: int) -> str:
     """Fetch a specific note (title, directory, and content)."""
     return _get_note(note_id, case_id)
 
 
-@mcp.tool()
-def update_note(case_id: int, note_id: int, fields: dict | None = None) -> str:
+@mcp.tool()  # type: ignore
+def update_note(case_id: int, note_id: int, fields: dict[str, Any] | None = None) -> str:
     """Update a note (title/content/custom_attributes/directory_id)."""
     fields = fields or {}
     return _update_note(note_id, case_id, **fields)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def delete_note(case_id: int, note_id: int) -> str:
     """Delete a note."""
     return _delete_note(note_id, case_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def add_note_comment(case_id: int, note_id: int, comment: str) -> str:
     """Add a comment to a note."""
     return _add_note_comment(note_id, comment, case_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_note_comments(case_id: int, note_id: int) -> str:
     """List comments for a note."""
     return _list_note_comments(note_id, case_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def search_notes(case_id: int, search_term: str = "%") -> str:
     """Search notes by term (use '%' to list all titles/ids)."""
     return _search_notes(case_id, search_term)
 
+
 # -------------------------------
 # Task helpers
 # -------------------------------
+
 
 def _list_tasks(case_id: int) -> str:
     try:
@@ -1099,7 +1217,13 @@ def _list_tasks(case_id: int) -> str:
         case_obj = _prepare_case(session, case_id)
         resp = case_obj.list_tasks(cid=case_id)
         data = _extract_data(resp, f"Listing tasks for case {case_id}")
-        items = _ensure_list(data)
+
+        # The API returns a dict with 'tasks' key
+        if isinstance(data, dict) and "tasks" in data:
+            items = data["tasks"]
+        else:
+            items = _ensure_list(data)
+
         if not items:
             return f"No tasks found for case {case_id}."
         result = f"Tasks for Case {case_id}:\n"
@@ -1111,10 +1235,18 @@ def _list_tasks(case_id: int) -> str:
             result += f"- ID: {tid}, Title: {title}, Status: {status}, Assignees: {assignees}\n"
         return result.rstrip()
     except Exception as e:
-        return f"Error listing tasks: {str(e)}"
+        return f"Error listing tasks: {e!s}"
 
 
-def _add_task(case_id: int, title: str, status: str | int, assignees: list[str | int], description: str | None = None, tags: list | None = None, custom_attributes: dict | None = None) -> str:
+def _add_task(
+    case_id: int,
+    title: str,
+    status: str | int,
+    assignees: list[str | int],
+    description: str | None = None,
+    tags: list[str] | None = None,
+    custom_attributes: dict[str, Any] | None = None,
+) -> str:
     try:
         session = get_iris_client()
         case_obj = _prepare_case(session, case_id)
@@ -1131,10 +1263,10 @@ def _add_task(case_id: int, title: str, status: str | int, assignees: list[str |
         tid = _get_field(data, "task_id", "id")
         return f"Task added. ID: {tid}"
     except Exception as e:
-        return f"Error adding task: {str(e)}"
+        return f"Error adding task: {e!s}"
 
 
-def _update_task(case_id: int, task_id: int, **fields) -> str:
+def _update_task(case_id: int, task_id: int, **fields: Any) -> str:
     try:
         session = get_iris_client()
         case_obj = _prepare_case(session, case_id)
@@ -1144,7 +1276,7 @@ def _update_task(case_id: int, task_id: int, **fields) -> str:
         _extract_data(resp, f"Updating task {task_id}")
         return f"Task {task_id} updated."
     except Exception as e:
-        return f"Error updating task: {str(e)}"
+        return f"Error updating task: {e!s}"
 
 
 def _delete_task(case_id: int, task_id: int) -> str:
@@ -1155,7 +1287,7 @@ def _delete_task(case_id: int, task_id: int) -> str:
         _extract_data(resp, f"Deleting task {task_id}")
         return f"Task {task_id} deleted."
     except Exception as e:
-        return f"Error deleting task: {str(e)}"
+        return f"Error deleting task: {e!s}"
 
 
 def _add_task_comment(case_id: int, task_id: int, comment: str) -> str:
@@ -1166,7 +1298,7 @@ def _add_task_comment(case_id: int, task_id: int, comment: str) -> str:
         _extract_data(resp, f"Adding comment to task {task_id}")
         return f"Comment added to task {task_id}."
     except Exception as e:
-        return f"Error adding task comment: {str(e)}"
+        return f"Error adding task comment: {e!s}"
 
 
 def _list_task_comments(case_id: int, task_id: int) -> str:
@@ -1188,7 +1320,7 @@ def _list_task_comments(case_id: int, task_id: int) -> str:
             result += f"- ID: {cid}, Author: {author}, Comment: {content}\n"
         return result.rstrip()
     except Exception as e:
-        return f"Error listing task comments: {str(e)}"
+        return f"Error listing task comments: {e!s}"
 
 
 def _update_task_comment(case_id: int, task_id: int, comment_id: int, comment: str) -> str:
@@ -1199,7 +1331,7 @@ def _update_task_comment(case_id: int, task_id: int, comment_id: int, comment: s
         _extract_data(resp, f"Updating comment {comment_id} on task {task_id}")
         return f"Task comment {comment_id} updated."
     except Exception as e:
-        return f"Error updating task comment: {str(e)}"
+        return f"Error updating task comment: {e!s}"
 
 
 def _delete_task_comment(case_id: int, task_id: int, comment_id: int) -> str:
@@ -1210,56 +1342,65 @@ def _delete_task_comment(case_id: int, task_id: int, comment_id: int) -> str:
         _extract_data(resp, f"Deleting comment {comment_id} on task {task_id}")
         return f"Task comment {comment_id} deleted."
     except Exception as e:
-        return f"Error deleting task comment: {str(e)}"
+        return f"Error deleting task comment: {e!s}"
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_tasks(case_id: int) -> str:
     """List tasks for a case."""
     return _list_tasks(case_id)
 
 
-@mcp.tool()
-def add_task(case_id: int, title: str, status: str | int, assignees: list[str | int], description: str | None = None, tags: list | None = None, custom_attributes: dict | None = None) -> str:
+@mcp.tool()  # type: ignore
+def add_task(
+    case_id: int,
+    title: str,
+    status: str | int,
+    assignees: list[str | int],
+    description: str | None = None,
+    tags: list[str] | None = None,
+    custom_attributes: dict[str, Any] | None = None,
+) -> str:
     """Add a task to a case."""
     return _add_task(case_id, title, status, assignees, description, tags, custom_attributes)
 
 
-@mcp.tool()
-def update_task(case_id: int, task_id: int, fields: dict | None = None) -> str:
+@mcp.tool()  # type: ignore
+def update_task(case_id: int, task_id: int, fields: dict[str, Any] | None = None) -> str:
     """Update a task (status/title/assignees/etc)."""
     fields = fields or {}
     return _update_task(case_id, task_id, **fields)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def delete_task(case_id: int, task_id: int) -> str:
     """Delete a task."""
     return _delete_task(case_id, task_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def add_task_comment(case_id: int, task_id: int, comment: str) -> str:
     """Add a comment to a task."""
     return _add_task_comment(case_id, task_id, comment)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def list_task_comments(case_id: int, task_id: int) -> str:
     """List comments for a task."""
     return _list_task_comments(case_id, task_id)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def update_task_comment(case_id: int, task_id: int, comment_id: int, comment: str) -> str:
     """Update a task comment."""
     return _update_task_comment(case_id, task_id, comment_id, comment)
 
 
-@mcp.tool()
+@mcp.tool()  # type: ignore
 def delete_task_comment(case_id: int, task_id: int, comment_id: int) -> str:
     """Delete a task comment."""
     return _delete_task_comment(case_id, task_id, comment_id)
+
 
 def _list_assets(case_id: int) -> str:
     try:
@@ -1280,22 +1421,19 @@ def _list_assets(case_id: int) -> str:
             if aid is None and name is None and atype is None and status is None:
                 result += f"- {asset}\n"
             else:
-                result += (
-                    f"- ID: {aid}, "
-                    f"Name: {name}, "
-                    f"Type: {atype}, "
-                    f"Status: {status}\n"
-                )
+                result += f"- ID: {aid}, Name: {name}, Type: {atype}, Status: {status}\n"
         return result
     except Exception as e:
-        return f"Error listing assets: {str(e)}"
+        return f"Error listing assets: {e!s}"
 
-@mcp.tool()
+
+@mcp.tool()  # type: ignore
 def list_assets(case_id: int) -> str:
     """
     List assets for a specific case.
     """
     return _list_assets(case_id)
+
 
 def _add_asset(
     case_id: int,
@@ -1309,7 +1447,7 @@ def _add_asset(
     ip: str | None = None,
     additional_info: str | None = None,
     ioc_links: list[int] | None = None,
-    custom_attributes: dict | None = None,
+    custom_attributes: dict[str, Any] | None = None,
 ) -> str:
     try:
         session = get_iris_client()
@@ -1332,9 +1470,10 @@ def _add_asset(
         data = _extract_data(asset, f"Adding asset to case {case_id}")
         return f"Asset added successfully. ID: {_get_field(data, 'asset_id', 'id')}"
     except Exception as e:
-        return f"Error adding asset: {str(e)}"
+        return f"Error adding asset: {e!s}"
 
-@mcp.tool()
+
+@mcp.tool()  # type: ignore
 def add_asset(
     case_id: int,
     name: str,
@@ -1347,7 +1486,7 @@ def add_asset(
     ip: str | None = None,
     additional_info: str | None = None,
     ioc_links: list[int] | None = None,
-    custom_attributes: dict | None = None,
+    custom_attributes: dict[str, Any] | None = None,
 ) -> str:
     """
     Add an asset to a case.
@@ -1366,6 +1505,7 @@ def add_asset(
         ioc_links,
         custom_attributes,
     )
+
 
 def _list_iocs(case_id: int) -> str:
     try:
@@ -1388,24 +1528,19 @@ def _list_iocs(case_id: int) -> str:
             if iid is None and value is None and itype is None and desc is None:
                 result += f"- {ioc}\n"
             else:
-                result += (
-                    f"- ID: {iid}, "
-                    f"Value: {value}, "
-                    f"Type: {itype}, "
-                    f"TLP: {tlp}, "
-                    f"Tags: {tags}, "
-                    f"Description: {desc}\n"
-                )
+                result += f"- ID: {iid}, Value: {value}, Type: {itype}, TLP: {tlp}, Tags: {tags}, Description: {desc}\n"
         return result
     except Exception as e:
-        return f"Error listing IOCs: {str(e)}"
+        return f"Error listing IOCs: {e!s}"
 
-@mcp.tool()
+
+@mcp.tool()  # type: ignore
 def list_iocs(case_id: int) -> str:
     """
     List IOCs for a specific case.
     """
     return _list_iocs(case_id)
+
 
 def _add_ioc(
     case_id: int,
@@ -1414,7 +1549,7 @@ def _add_ioc(
     description: str = "",
     ioc_tlp: str | int | None = None,
     ioc_tags: list[str] | str | None = None,
-    custom_attributes: dict | None = None,
+    custom_attributes: dict[str, Any] | None = None,
 ) -> str:
     try:
         session = get_iris_client()
@@ -1432,9 +1567,10 @@ def _add_ioc(
         data = _extract_data(ioc, f"Adding IOC to case {case_id}")
         return f"IOC added successfully. ID: {_get_field(data, 'ioc_id', 'id')}"
     except Exception as e:
-        return f"Error adding IOC: {str(e)}"
+        return f"Error adding IOC: {e!s}"
 
-@mcp.tool()
+
+@mcp.tool()  # type: ignore
 def add_ioc(
     case_id: int,
     value: str,
@@ -1442,12 +1578,13 @@ def add_ioc(
     description: str = "",
     ioc_tlp: str | int | None = None,
     ioc_tags: list[str] | str | None = None,
-    custom_attributes: dict | None = None,
+    custom_attributes: dict[str, Any] | None = None,
 ) -> str:
     """
     Add an IOC to a case.
     """
     return _add_ioc(case_id, value, ioc_type, description, ioc_tlp, ioc_tags, custom_attributes)
+
 
 def _list_customers() -> str:
     try:
@@ -1466,14 +1603,16 @@ def _list_customers() -> str:
             result += f"- ID: {cid}, Name: {name}, Sector: {sector}\n"
         return result
     except Exception as e:
-        return f"Error listing customers: {str(e)}"
+        return f"Error listing customers: {e!s}"
 
-@mcp.tool()
+
+@mcp.tool()  # type: ignore
 def list_customers() -> str:
     """
     List all customers.
     """
     return _list_customers()
+
 
 def _get_customer_by_id(customer_id: int) -> str:
     try:
@@ -1486,22 +1625,18 @@ def _get_customer_by_id(customer_id: int) -> str:
         name = _get_field(data, "customer_name", "name")
         sector = _get_field(data, "customer_sector", "sector")
         description = _get_field(data, "customer_description", "description")
-        return (
-            "Customer Details:\n"
-            f"ID: {customer_id}\n"
-            f"Name: {name}\n"
-            f"Sector: {sector}\n"
-            f"Description: {description}"
-        )
+        return f"Customer Details:\nID: {customer_id}\nName: {name}\nSector: {sector}\nDescription: {description}"
     except Exception as e:
-        return f"Error getting customer {customer_id}: {str(e)}"
+        return f"Error getting customer {customer_id}: {e!s}"
 
-@mcp.tool()
+
+@mcp.tool()  # type: ignore
 def get_customer_by_id(customer_id: int) -> str:
     """
     Get a customer by ID.
     """
     return _get_customer_by_id(customer_id)
+
 
 def _lookup_customer(customer_name: str) -> str:
     try:
@@ -1515,16 +1650,18 @@ def _lookup_customer(customer_name: str) -> str:
         name = _get_field(data, "customer_name", "name") or customer_name
         return f"Customer found. ID: {cid}, Name: {name}"
     except Exception as e:
-        return f"Error looking up customer '{customer_name}': {str(e)}"
+        return f"Error looking up customer '{customer_name}': {e!s}"
 
-@mcp.tool()
+
+@mcp.tool()  # type: ignore
 def lookup_customer(customer_name: str) -> str:
     """
     Lookup a customer ID by name.
     """
     return _lookup_customer(customer_name)
 
-def run():
+
+def run() -> None:
     """Entry point for the iris-mcp console script."""
     mcp.run(transport="http", host="127.0.0.1", port=9000)
 
