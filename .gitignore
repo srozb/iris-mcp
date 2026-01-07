@@ -11,5 +11,13 @@ deps/
 .venv
 .env
 .coverage
+# Caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.uv-cache/
+.DS_Store
+
+# Vendor (local dev)
 vendor/
-.python-version
+
