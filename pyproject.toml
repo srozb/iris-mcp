@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "DFIR-IRIS MCP server"
 readme = "README.md"
 requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "Slawek", email = "slawek@example.com" }]
 dependencies = [
     "dfir-iris-client>=2.0.4",
     "fastmcp>=2.13.2",

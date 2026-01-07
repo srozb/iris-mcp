@@ -279,73 +279,73 @@ def _get_catalog(kind: str) -> list[dict[str, str]]:
     return catalog
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_types(kind: str) -> list[dict[str, str]]:
     """Return a catalog of supported types/statuses (e.g., assets, iocs, severities)."""
     return _get_catalog(kind)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_ioc_types() -> list[dict[str, str]]:
     """Return all supported IOC types (with optional validation hints)."""
     return IOC_TYPES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_asset_types() -> list[dict[str, str]]:
     """Return all supported asset types (with icon hints)."""
     return ASSET_TYPES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_analysis_statuses() -> list[dict[str, str]]:
     """Return all analysis statuses used for assets/IOCs."""
     return ANALYSIS_STATUSES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_alert_resolution_statuses() -> list[dict[str, str]]:
     """Return alert resolution statuses."""
     return ALERT_RESOLUTION_STATUSES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_alert_statuses() -> list[dict[str, str]]:
     """Return alert lifecycle statuses."""
     return ALERT_STATUSES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_task_statuses() -> list[dict[str, str]]:
     """Return task statuses."""
     return TASK_STATUSES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_severities() -> list[dict[str, str]]:
     """Return severity levels."""
     return SEVERITIES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_evidence_types() -> list[dict[str, str]]:
     """Return evidence types."""
     return EVIDENCE_TYPES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_event_categories() -> list[dict[str, str]]:
     """Return event categories."""
     return EVENT_CATEGORIES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_os_types() -> list[dict[str, str]]:
     """Return operating system types."""
     return OS_TYPES
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_tlp_levels() -> list[dict[str, str]]:
     """Return TLP levels."""
     return TLP_LEVELS
@@ -410,7 +410,7 @@ def _list_cases(
         return f"Error listing cases: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_cases(
     customer_id: int | None = None,
     case_name: str | None = None,
@@ -447,7 +447,7 @@ def _get_case(case_id: int) -> str:
         return f"Error getting case {case_id}: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def get_case(case_id: int) -> str:
     """
     Get detailed information about a specific case.
@@ -481,7 +481,7 @@ def _create_case(name: str, customer_id: int, description: str = "", soc_id: str
         return f"Error creating case: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def create_case(
     name: str,
     customer_id: int,
@@ -526,7 +526,7 @@ def _create_alert(
         return f"Error creating alert: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def create_alert(
     title: str,
     description: str,
@@ -555,7 +555,7 @@ def _create_customer(name: str, description: str | None = None, sla: str | None 
         return f"Error creating customer: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def create_customer(name: str, description: str | None = None, sla: str | None = None) -> str:
     """Create a new customer."""
     return _create_customer(name, description, sla)
@@ -1033,31 +1033,31 @@ def _delete_event(event_id: int, case_id: int | None = None) -> str:
         return f"Error deleting event: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_notes(case_id: int) -> str:
     """List notes for a case (includes directory ids)."""
     return _list_notes(case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_note_directories(case_id: int) -> str:
     """List note directories for a case (best-effort across client versions)."""
     return _list_note_directories(case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def create_note_directory(case_id: int, name: str, parent_directory_id: int | None = None) -> str:
     """Create a note directory for a case (best-effort across client versions)."""
     return _create_note_directory(case_id, name, parent_directory_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_evidence(case_id: int) -> str:
     """List evidence for a case (best-effort across client versions)."""
     return _list_evidence(case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def add_evidence(
     case_id: int,
     filename: str | None = None,
@@ -1072,26 +1072,26 @@ def add_evidence(
     return _add_evidence(case_id, filename, file_size, description, file_hash, custom_attributes, extra, name)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def update_evidence(evidence_id: int, case_id: int | None = None, fields: dict[str, Any] | None = None) -> str:
     """Update evidence fields (pass additional fields in 'fields')."""
     fields = fields or {}
     return _update_evidence(evidence_id, case_id, **fields)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def delete_evidence(evidence_id: int, case_id: int | None = None) -> str:
     """Delete an evidence item."""
     return _delete_evidence(evidence_id, case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_events(case_id: int) -> str:
     """List events for a case."""
     return _list_events(case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def add_event(
     case_id: int,
     name: str,
@@ -1135,26 +1135,26 @@ def add_event(
     )
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def update_event(event_id: int, case_id: int | None = None, fields: dict[str, Any] | None = None) -> str:
     """Update an event's fields (pass additional fields in 'fields')."""
     fields = fields or {}
     return _update_event(event_id, case_id, **fields)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def delete_event(event_id: int, case_id: int | None = None) -> str:
     """Delete an event."""
     return _delete_event(event_id, case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def debug_case_methods(case_id: int, filter_text: str = "") -> str:
     """List available Case methods (optionally filtered), useful for wiring missing tools."""
     return _introspect_case_methods(case_id, filter_text)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def add_note(
     case_id: int,
     content: str,
@@ -1169,38 +1169,38 @@ def add_note(
     return _add_note(case_id, content, title, directory_id, group_id, custom_attributes)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def get_note(case_id: int, note_id: int) -> str:
     """Fetch a specific note (title, directory, and content)."""
     return _get_note(note_id, case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def update_note(case_id: int, note_id: int, fields: dict[str, Any] | None = None) -> str:
     """Update a note (title/content/custom_attributes/directory_id)."""
     fields = fields or {}
     return _update_note(note_id, case_id, **fields)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def delete_note(case_id: int, note_id: int) -> str:
     """Delete a note."""
     return _delete_note(note_id, case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def add_note_comment(case_id: int, note_id: int, comment: str) -> str:
     """Add a comment to a note."""
     return _add_note_comment(note_id, comment, case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_note_comments(case_id: int, note_id: int) -> str:
     """List comments for a note."""
     return _list_note_comments(note_id, case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def search_notes(case_id: int, search_term: str = "%") -> str:
     """Search notes by term (use '%' to list all titles/ids)."""
     return _search_notes(case_id, search_term)
@@ -1345,13 +1345,13 @@ def _delete_task_comment(case_id: int, task_id: int, comment_id: int) -> str:
         return f"Error deleting task comment: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_tasks(case_id: int) -> str:
     """List tasks for a case."""
     return _list_tasks(case_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def add_task(
     case_id: int,
     title: str,
@@ -1365,38 +1365,38 @@ def add_task(
     return _add_task(case_id, title, status, assignees, description, tags, custom_attributes)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def update_task(case_id: int, task_id: int, fields: dict[str, Any] | None = None) -> str:
     """Update a task (status/title/assignees/etc)."""
     fields = fields or {}
     return _update_task(case_id, task_id, **fields)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def delete_task(case_id: int, task_id: int) -> str:
     """Delete a task."""
     return _delete_task(case_id, task_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def add_task_comment(case_id: int, task_id: int, comment: str) -> str:
     """Add a comment to a task."""
     return _add_task_comment(case_id, task_id, comment)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_task_comments(case_id: int, task_id: int) -> str:
     """List comments for a task."""
     return _list_task_comments(case_id, task_id)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def update_task_comment(case_id: int, task_id: int, comment_id: int, comment: str) -> str:
     """Update a task comment."""
     return _update_task_comment(case_id, task_id, comment_id, comment)
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def delete_task_comment(case_id: int, task_id: int, comment_id: int) -> str:
     """Delete a task comment."""
     return _delete_task_comment(case_id, task_id, comment_id)
@@ -1427,7 +1427,7 @@ def _list_assets(case_id: int) -> str:
         return f"Error listing assets: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_assets(case_id: int) -> str:
     """
     List assets for a specific case.
@@ -1473,7 +1473,7 @@ def _add_asset(
         return f"Error adding asset: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def add_asset(
     case_id: int,
     name: str,
@@ -1534,7 +1534,7 @@ def _list_iocs(case_id: int) -> str:
         return f"Error listing IOCs: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_iocs(case_id: int) -> str:
     """
     List IOCs for a specific case.
@@ -1570,7 +1570,7 @@ def _add_ioc(
         return f"Error adding IOC: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def add_ioc(
     case_id: int,
     value: str,
@@ -1606,7 +1606,7 @@ def _list_customers() -> str:
         return f"Error listing customers: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def list_customers() -> str:
     """
     List all customers.
@@ -1630,7 +1630,7 @@ def _get_customer_by_id(customer_id: int) -> str:
         return f"Error getting customer {customer_id}: {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def get_customer_by_id(customer_id: int) -> str:
     """
     Get a customer by ID.
@@ -1653,7 +1653,7 @@ def _lookup_customer(customer_name: str) -> str:
         return f"Error looking up customer '{customer_name}': {e!s}"
 
 
-@mcp.tool()  # type: ignore
+@mcp.tool()
 def lookup_customer(customer_name: str) -> str:
     """
     Lookup a customer ID by name.
