@@ -1,68 +1,60 @@
-# DFIR-Iris MCP Server
+# 👁️ DFIR-Iris MCP Server
 
-A Model Context Protocol (MCP) server that enables AI agents to interact with [DFIR Iris](https://dfir-iris.org/), a collaborative incident response platform.
+**Connect your AI agents to [DFIR Iris](https://dfir-iris.org/) for automated incident response.**
 
-This server allows LLMs to assist analysts by:
-- Managing cases (create, read, update)
-- Recording evidence, IOCs, and notes
-- Tracking timeline events
-- Managing alerts
+This Model Context Protocol (MCP) server enables LLMs to managing cases, tracks evidence, and record timeline events directly within your DFIR workflow.
 
-## Prerequisites
+## 🚀 Quick Start
 
-- Python 3.12+
-- [uv](https://github.com/astral-sh/uv) (recommended) or pip
-- Access to a running DFIR Iris instance
+The easiest way to run this server is with [uv](https://github.com/astral-sh/uv).
 
-## Installation
-
-1.  **Clone the repository**:
-    ```bash
-    git clone <repository-url>
-    cd iris-mcp
-    ```
-
-2.  **Install dependencies**:
-    Using `uv`:
-    ```bash
-    uv sync
-    ```
-    Or using `pip`:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-## Configuration
-
-Create a `.env` file in the project root with your DFIR Iris credentials:
+### 1. Zero-Setup Run
+If you have the repository cloned, you can run the server directly without manual virtualenv creation. The script handles its own dependencies!
 
 ```bash
-IRIS_API_KEY=your_api_key_here
-IRIS_HOST=https://your-iris-instance.com
-IRIS_VERIFY_SSL=true  # Set to false for self-signed certs
+# Make sure you have the repository cloned
+git clone https://github.com/srozb/iris-mcp.git
+cd iris-mcp
+
+# Run directly (stdio mode)
+./iris_mcp.py
+
+# Run in HTTP mode (for Gemini/debug)
+./iris_mcp.py --http
 ```
 
-## Usage
+*Note: Requires `uv` to be installed.*
 
-### Running the Server
+### 2. Configure Credentials
+The server needs access to your DFIR Iris instance. Set these environment variables:
 
-You can run the MCP server using `uv`:
+- `IRIS_API_KEY`: Your API key.
+- `IRIS_HOST`: URL of your instance (e.g., `https://iris.example.com`).
+- `IRIS_VERIFY_SSL`: `true` or `false` (default: `true`).
+
+You can also create a `.env` file in the root directory:
+```bash
+IRIS_API_KEY=your_key
+IRIS_HOST=https://iris.example.com
+```
+
+### 3. Gemini (HTTP Mode)
+To run the server in HTTP mode (listening on port 9000):
 
 ```bash
-uv run iris-mcp
+uv run iris-mcp --http
 ```
 
-Or directly with Python if installed in your environment:
-
+Then add it to Gemini:
 ```bash
-python iris_mcp.py
+gemini mcp add iris http://127.0.0.1:9000/mcp
 ```
 
-### Connecting an Agent
+## 🔌 Connect to Claude Desktop
 
-Configure your MCP client (e.g., Claude Desktop, an IDE extension, or a custom agent) to use this server.
+The server uses Standard Input/Output (stdio) by default, which is what Claude Desktop expects.
 
-**Example Claude Desktop Config (`claude_desktop_config.json`):**
+Add this to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -70,10 +62,10 @@ Configure your MCP client (e.g., Claude Desktop, an IDE extension, or a custom a
     "dfir-iris": {
       "command": "uv",
       "args": [
-        "--directory",
-        "/path/to/iris-mcp",
         "run",
-        "iris-mcp"
+        "--with", "dfir-iris-client>=2.0.4",
+        "--with", "fastmcp>=2.13.2",
+        "https://raw.githubusercontent.com/srozb/iris-mcp/master/iris_mcp.py"
       ],
       "env": {
         "IRIS_API_KEY": "your_api_key",
@@ -83,20 +75,24 @@ Configure your MCP client (e.g., Claude Desktop, an IDE extension, or a custom a
   }
 }
 ```
+*Tip: You can point `args` to a local path if you prefer running from source.*
 
-## Development
+## ✨ Features
 
-### Running Tests
+- **Case Management**: Create, list, search, and update cases.
+- **Evidence & IOCs**: Add malicious IPs, domains, and file artifacts.
+- **Notes & Timeline**: Maintain a chronological record of the investigation.
+- **Tasks**: manage analyst tasks.
+
+## 🛠️ Development
+
+This project uses `uv` for all lifecycle management.
 
 ```bash
+# Run tests
 uv run pytest
-```
 
-### Code Quality
-
-Run linting and type checking:
-
-```bash
+# Lint & Format
 uv run ruff check .
 uv run mypy .
 ```

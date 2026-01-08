@@ -1663,7 +1663,12 @@ def lookup_customer(customer_name: str) -> str:
 
 def run() -> None:
     """Entry point for the iris-mcp console script."""
-    mcp.run(transport="http", host="127.0.0.1", port=9000)
+    # Run over HTTP if --http is passed (e.g. for Gemini or inspection)
+    if "--http" in sys.argv:
+        mcp.run(transport="http", host="127.0.0.1", port=9000)
+    else:
+        # Default to stdio for generic MCP clients (Claude, etc.)
+        mcp.run()
 
 
 if __name__ == "__main__":
